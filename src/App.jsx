@@ -42,6 +42,8 @@ export default function App() {
             revealDirection="start"
             speed={60}
             maxIterations={20}
+            className="decrypted-clear"
+            encryptedClassName="decrypted-glitch"
           />
         </h1>
         <p

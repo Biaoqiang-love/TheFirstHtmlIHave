@@ -9,3 +9,15 @@ body {
   justify-content: center;
   min-height: 100vh;
 }
+
+/* DecryptedText:「虚无」乱码 → 具体白字 */
+.decrypted-glitch {
+  opacity: 0.12;
+  filter: blur(6px);
+  transition: opacity 0.6s ease, filter 0.6s ease;
+}
+.decrypted-clear {
+  opacity: 1;
+  filter: blur(0px);
+  transition: opacity 0.6s ease, filter 0.6s ease;
+}
