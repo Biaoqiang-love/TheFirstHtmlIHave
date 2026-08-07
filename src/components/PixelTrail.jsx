@@ -58,7 +58,8 @@ const DotMaterial = shaderMaterial(
 
       float trail = texture2D(mouseTrail, gridUvCenter).r;
 
-      gl_FragColor = vec4(pixelColor, trail);
+      // premultiply color by alpha: canvas is premultipliedAlpha, so trail=0 must output (0,0,0,0) to be transparent
+      gl_FragColor = vec4(pixelColor * trail, trail);
     }
   `
 );
