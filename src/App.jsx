@@ -95,7 +95,7 @@ export default function App() {
 
       {/* 鼠标像素拖尾:包一层 fixed 容器固定铺满视口(避免 canvas 退化为文档流元素,导致滚动时露出青色色块) */}
       <div style={{ position: 'fixed', inset: 0, zIndex: 2 }}>
-        <PixelTrail gridSize={50} trailSize={0.35} maxAge={180} color="#8be9ff" />
+        <PixelTrail gridSize={50} trailSize={0.05} maxAge={180} color="#8be9ff" />
       </div>
     </>
   );
