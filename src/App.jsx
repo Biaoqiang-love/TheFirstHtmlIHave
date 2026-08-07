@@ -57,6 +57,38 @@ export default function App() {
           <br />
           移动鼠标:像素拖尾会跟随你。
         </p>
+
+        {/* 跳转按钮:点击打开抖音(新标签页) */}
+        <a
+          href="https://www.douyin.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: 'inline-block',
+            marginTop: 32,
+            padding: '14px 36px',
+            borderRadius: 999,
+            background: 'linear-gradient(135deg, #25f4ee, #fe2c55)',
+            color: '#ffffff',
+            fontWeight: 700,
+            fontSize: 'clamp(15px, 2vw, 18px)',
+            textDecoration: 'none',
+            letterSpacing: 1,
+            boxShadow: '0 8px 28px rgba(254, 44, 85, 0.35)',
+            transition: 'transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease',
+            cursor: 'pointer',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-2px) scale(1.05)';
+            e.currentTarget.style.boxShadow = '0 14px 40px rgba(254, 44, 85, 0.55)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0) scale(1)';
+            e.currentTarget.style.boxShadow = '0 8px 28px rgba(254, 44, 85, 0.35)';
+          }}
+        >
+          🎵 打开抖音
+        </a>
       </main>
 
       {/* 鼠标像素拖尾 */}
