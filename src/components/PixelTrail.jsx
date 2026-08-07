@@ -1,5 +1,5 @@
 /* eslint-disable react/no-unknown-property */
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import { shaderMaterial, useTrailTexture } from '@react-three/drei';
 import * as THREE from 'three';
@@ -67,6 +67,12 @@ const DotMaterial = shaderMaterial(
 function Scene({ gridSize, trailSize, maxAge, interpolate, easingFunction, pixelColor }) {
   const size = useThree(s => s.size);
   const viewport = useThree(s => s.viewport);
+  const gl = useThree(s => s.gl);
+  const camera = useThree(s => s.camera);
+
+  const meshRef = useRef(null);
+  // 独立的 raycast,避免和 r3f 事件系统共用一个 raycaster
+  const raycaster = useMemo(() => new THREE.Raycaster(), []);
 
   const dotMaterial = useMemo(() => new DotMaterial(), []);
   dotMaterial.uniforms.pixelColor.value = new THREE.Color(pixelColor);
@@ -88,8 +94,29 @@ function Scene({ gridSize, trailSize, maxAge, interpolate, easingFunction, pixel
 
   const scale = Math.max(viewport.width, viewport.height) / 2;
 
+  // 画布设了 pointer-events:none(否则全屏 canvas 会拦截所有点击,盖住按钮),
+  // 所以改在 window 上监听 pointermove,用射线求交把鼠标位置转成 uv 喂给拖尾纹理。
+  useEffect(() => {
+    const handle = (e) => {
+      if (!meshRef.current) return;
+      const rect = gl.domElement.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      const ndc = new THREE.Vector2(
+        ((e.clientX - rect.left) / rect.width) * 2 - 1,
+        -((e.clientY - rect.top) / rect.height) * 2 + 1
+      );
+      raycaster.setFromCamera(ndc, camera);
+      const hits = raycaster.intersectObject(meshRef.current);
+      if (hits.length && hits[0].uv) {
+        onMove({ uv: hits[0].uv });
+      }
+    };
+    window.addEventListener('pointermove', handle);
+    return () => window.removeEventListener('pointermove', handle);
+  }, [onMove, raycaster, camera, gl]);
+
   return (
-    <mesh scale={[scale, scale, 1]} onPointerMove={onMove}>
+    <mesh ref={meshRef} scale={[scale, scale, 1]}>
       <planeGeometry args={[2, 2]} />
       <primitive
         object={dotMaterial}
@@ -124,7 +151,16 @@ export default function PixelTrail({
         {...canvasProps}
         gl={glProps}
         className={`pixel-canvas ${className}`}
-        style={gooeyFilter && { filter: `url(#${gooeyFilter.id})` }}
+        style={{
+          position: 'relative',
+          width: '100%',
+          height: '100%',
+          overflow: 'hidden',
+          // r3f 的 wrapper 默认内联 pointer-events:auto,会拦截所有点击(盖住按钮)。
+          // 这里显式改成 none:canvas 层整体点击穿透,拖尾改由 window 级监听驱动。
+          pointerEvents: 'none',
+          ...(gooeyFilter ? { filter: `url(#${gooeyFilter.id})` } : {}),
+        }}
       >
         <Scene
           gridSize={gridSize}

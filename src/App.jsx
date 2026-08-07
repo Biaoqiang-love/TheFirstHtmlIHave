@@ -93,8 +93,9 @@ export default function App() {
         </a>
       </main>
 
-      {/* 鼠标像素拖尾:包一层 fixed 容器固定铺满视口(避免 canvas 退化为文档流元素,导致滚动时露出青色色块) */}
-      <div style={{ position: 'fixed', inset: 0, zIndex: 2 }}>
+      {/* 鼠标像素拖尾:包一层 fixed 容器固定铺满视口(避免 canvas 退化为文档流元素,导致滚动时露出青色色块)。
+           pointerEvents:'none' 让全屏画布不拦截任何点击,底下 main 里的按钮才能点;拖尾改由组件内部 window 监听驱动。 */}
+      <div style={{ position: 'fixed', inset: 0, zIndex: 2, pointerEvents: 'none' }}>
         <PixelTrail gridSize={50} trailSize={0.05} maxAge={180} color="#8be9ff" />
       </div>
     </>
