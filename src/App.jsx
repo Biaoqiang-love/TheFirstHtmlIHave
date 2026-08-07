@@ -65,6 +65,8 @@ export default function App() {
           rel="noopener noreferrer"
           style={{
             display: 'inline-block',
+            position: 'relative',
+            zIndex: 3,
             marginTop: 32,
             padding: '14px 36px',
             borderRadius: 999,
@@ -91,14 +93,10 @@ export default function App() {
         </a>
       </main>
 
-      {/* 鼠标像素拖尾 */}
-      <PixelTrail
-        gridSize={50}
-        trailSize={0.35}
-        maxAge={180}
-        color="#8be9ff"
-        canvasProps={{ style: { position: 'fixed', inset: 0, zIndex: 2, pointerEvents: 'auto' } }}
-      />
+      {/* 鼠标像素拖尾:包一层 fixed 容器固定铺满视口(避免 canvas 退化为文档流元素,导致滚动时露出青色色块) */}
+      <div style={{ position: 'fixed', inset: 0, zIndex: 2 }}>
+        <PixelTrail gridSize={50} trailSize={0.35} maxAge={180} color="#8be9ff" />
+      </div>
     </>
   );
 }
