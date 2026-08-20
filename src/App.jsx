@@ -83,14 +83,15 @@ export default function App() {
             <div className="eyebrow">PNG / PDF → Molecular Structure</div>
             <h1>
               {/* 乱码动效参数:
-                  speed          乱码跳动频率(每帧间隔 ms,越小跳得越密;默认 50)
-                  maxIterations  乱码摇动帧数;恢复正确文字用时 = speed × maxIterations
-                  当前 50 × 20 = 1000ms,即乱码 1 秒后恢复 */}
+                  speed           乱码跳动频率(每帧间隔 ms;100 = 比默认 50 慢一半)
+                  maxIterations   乱码滚动帧数(滚动结束后进入逐字揭晓)
+                  revealInterval  逐字揭晓间隔 ms;每个字落定后 ≤ 该时长出现下一个字 */}
               <DecryptedText
                 text="让化学结构识别过程真正可见"
                 animateOn="view"
-                speed={50}
-                maxIterations={20}
+                speed={100}
+                maxIterations={10}
+                revealInterval={10}
               />
             </h1>
             <p>上传分子结构图片或 PDF，逐步查看 MolScribe 识别、SMILES、Molfile、RDKit 渲染和视觉校验结果。</p>

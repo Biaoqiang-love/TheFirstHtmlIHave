@@ -22,6 +22,7 @@ export default function DecryptedText({
   text,
   speed = 50,
   maxIterations = 10,
+  revealInterval,
   sequential = false,
   revealDirection = 'start',
   useOriginalCharsOnly = false,
@@ -149,6 +150,8 @@ export default function DecryptedText({
     if (!isAnimating) return;
 
     let currentIteration = 0;
+    let revealPointer = 0;
+    let revealTimer = null;
 
     const getNextIndex = revealedSet => {
       const textLength = text.length;
@@ -221,9 +224,27 @@ export default function DecryptedText({
             currentIteration++;
             if (currentIteration >= maxIterations) {
               clearInterval(intervalRef.current);
-              setIsAnimating(false);
-              setDisplayText(text);
-              setIsDecrypted(true);
+              if (revealInterval) {
+                // 逐字揭晓:乱码滚动结束后,从前往后每 revealInterval ms 落定一个字符
+                revealPointer = 0;
+                revealTimer = setInterval(() => {
+                  revealPointer++;
+                  const newRevealed = new Set();
+                  for (let i = 0; i < revealPointer && i < text.length; i++) newRevealed.add(i);
+                  setRevealedIndices(newRevealed);
+                  setDisplayText(shuffleText(text, newRevealed));
+                  if (revealPointer >= text.length) {
+                    clearInterval(revealTimer);
+                    setIsAnimating(false);
+                    setDisplayText(text);
+                    setIsDecrypted(true);
+                  }
+                }, revealInterval);
+              } else {
+                setIsAnimating(false);
+                setDisplayText(text);
+                setIsDecrypted(true);
+              }
             }
             return prevRevealed;
           }
@@ -253,12 +274,16 @@ export default function DecryptedText({
       });
     }, speed);
 
-    return () => clearInterval(intervalRef.current);
+    return () => {
+      clearInterval(intervalRef.current);
+      if (revealTimer) clearInterval(revealTimer);
+    };
   }, [
     isAnimating,
     text,
     speed,
     maxIterations,
+    revealInterval,
     sequential,
     revealDirection,
     shuffleText,
