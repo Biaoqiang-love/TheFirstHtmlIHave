@@ -81,7 +81,18 @@ export default function App() {
         <main className="landing">
           <section className="hero">
             <div className="eyebrow">PNG / PDF → Molecular Structure</div>
-            <h1><DecryptedText text="让化学结构识别过程真正可见" animateOn="view" /></h1>
+            <h1>
+              {/* 乱码动效参数:
+                  speed          乱码跳动频率(每帧间隔 ms,越小跳得越密;默认 50)
+                  maxIterations  乱码摇动帧数;恢复正确文字用时 = speed × maxIterations
+                  当前 50 × 20 = 1000ms,即乱码 1 秒后恢复 */}
+              <DecryptedText
+                text="让化学结构识别过程真正可见"
+                animateOn="view"
+                speed={50}
+                maxIterations={20}
+              />
+            </h1>
             <p>上传分子结构图片或 PDF，逐步查看 MolScribe 识别、SMILES、Molfile、RDKit 渲染和视觉校验结果。</p>
             <UploadPanel uploads={uploads} onFiles={receiveFiles} onStart={() => startJob(false)} onDemo={() => startJob(true)} />
             <div className="trust-row"><span>支持 PNG / JPG / PDF</span><span>支持文件夹批处理</span><span>逐样本展示 PASS / REVIEW</span></div>
