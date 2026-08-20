@@ -448,7 +448,16 @@ export default function DecryptedText({
           const isRevealedOrDone = revealedIndices.has(index) || (!isAnimating && isDecrypted);
 
           return (
-            <span key={index} className={isRevealedOrDone ? className : encryptedClassName}>
+            <span
+              key={index}
+              className={isRevealedOrDone ? className : encryptedClassName}
+              style={
+                isRevealedOrDone
+                  ? undefined
+                  : // 未落定乱码字符固定占一个字宽,避免中文字→窄字母导致整行宽度剧变、布局抖动闪灰
+                    { display: 'inline-block', minWidth: '1em', textAlign: 'center' }
+              }
+            >
               {char}
             </span>
           );
