@@ -44,6 +44,20 @@ paths:
                   description: Optional display paths matched positionally to files.
                   items:
                     type: string
+                processingMode:
+                  $ref: '#/components/schemas/ProcessingMode'
+                  default: DIRECT
+                aiBaseUrl:
+                  type: string
+                  format: uri
+                  description: Required when processingMode is AI.
+                aiApiKey:
+                  type: string
+                  format: password
+                  description: Ephemeral per-job secret; never persisted or returned.
+                aiModel:
+                  type: string
+                  description: Required when processingMode is AI.
             encoding:
               files:
                 style: form
@@ -236,6 +250,9 @@ components:
     PipelineStage:
       type: string
       enum: [input, recognition, render, compare, final]
+    ProcessingMode:
+      type: string
+      enum: [DIRECT, AI]
     StatusCounts:
       type: object
       additionalProperties: false
@@ -272,6 +289,7 @@ components:
       additionalProperties: false
       required:
         - id
+        - processingMode
         - status
         - progress
         - currentStage
@@ -290,6 +308,8 @@ components:
       properties:
         id:
           type: string
+        processingMode:
+          $ref: '#/components/schemas/ProcessingMode'
         status:
           $ref: '#/components/schemas/JobStatus'
         progress:

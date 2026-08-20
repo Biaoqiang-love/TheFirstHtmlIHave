@@ -65,7 +65,7 @@
 后端适配 `pb_3` 时必须做以下归一化：
 
 - `PROVISIONAL` → `PROVISIONAL_PASS`
-- `NOT_ASSESSED` → `FAILED`
+- `NOT_ASSESSED` → `REVIEW`；表示已有候选结构，但未取得可确认的视觉校验结论
 - `pb_3` 异常或缺少必要产物 → `FAILED`
 
 ### 2.4 处理阶段
@@ -89,6 +89,7 @@
 ```json
 {
   "id": "job_01K33EXAMPLE",
+  "processingMode": "DIRECT",
   "status": "PROCESSING",
   "progress": 42,
   "currentStage": "compare",
@@ -116,6 +117,7 @@
 说明：
 
 - PDF 裁剪结束前，`totalSamples` 可以为 `null`；PNG/JPG 输入可在创建时确定。
+- `processingMode` 为 `DIRECT` 或 `AI`，表示本任务是否使用临时大模型配置。
 - `completedSamples` 等于样本终态数量。
 - `statusCounts` 的五个值之和在 `totalSamples` 已知时必须等于 `totalSamples`。
 - `startedAt`、`finishedAt`、`currentStage` 和 `error` 可为 `null`。
@@ -244,6 +246,10 @@ multipart 字段：
 |---|---|---:|---|
 | `files` | file[] | 是 | 重复同名 part；允许 PNG、JPEG、PDF，至少一个 |
 | `relativePaths` | string[] | 否 | 重复同名文本 part，与 `files` 按顺序一一对应；来自 `webkitRelativePath` 或文件名 |
+| `processingMode` | `DIRECT` / `AI` | 否 | 默认 `DIRECT`；直接识别渲染或启用大模型视觉校验与纠正 |
+| `aiBaseUrl` | string | AI 时是 | OpenAI 兼容 API 根地址 |
+| `aiApiKey` | string | AI 时是 | 仅用于本次任务的临时 Key，不得落盘或返回 |
+| `aiModel` | string | AI 时是 | 本次任务使用的视觉模型名称 |
 
 浏览器构造示例：
 
@@ -253,6 +259,7 @@ uploads.forEach(({ file, name }) => {
   body.append('files', file, file.name);
   body.append('relativePaths', name);
 });
+body.append('processingMode', 'DIRECT');
 
 const response = await fetch(`${API_BASE_URL}/api/jobs`, {
   method: 'POST',
@@ -263,7 +270,11 @@ const response = await fetch(`${API_BASE_URL}/api/jobs`, {
 
 规则：
 
-- 不允许客户端传服务器路径、模型配置、Qwen 凭据或输出目录。
+- 不允许客户端传服务器路径或输出目录。
+- `AI` 模式允许提交任务级临时模型配置。Key 只能短暂存在于后端内存和该任务子进程环境中，禁止写入 Job、Sample、事件、任务文件或日志；任务启动后从等待队列删除，结束后清理。后端重启导致临时 Key 丢失时必须安全失败，不能偷偷改用其他 Key。
+- `DIRECT` 模式必须从任务子进程环境移除 `QWEN_API_KEY`，即使服务器自身配置了统一 Key 也不能调用大模型。
+- 前端不得把临时 Key 写入源码、URL、localStorage、sessionStorage 或错误信息；提交成功后清空输入框。线上传输必须使用 HTTPS。
+- 允许自定义 `aiBaseUrl` 的公开部署必须增加地址白名单或等价的 SSRF 防护；当前任意地址输入只适用于本地开发模式。
 - 后端按文件内容和受支持 MIME 类型共同校验，不能只信扩展名或浏览器 MIME。
 - 若传 `relativePaths`，数量必须和 `files` 相同。路径只用于展示和来源追踪，后端必须去除盘符、根路径和 `..`，不能直接作为落盘路径。
 - 上传大小、单批文件数和并发限制由部署配置决定；超限使用下方稳定错误码。
@@ -281,6 +292,7 @@ Content-Type: application/json
 ```json
 {
   "id": "job_01K33EXAMPLE",
+  "processingMode": "DIRECT",
   "status": "QUEUED",
   "progress": 0,
   "currentStage": null,
@@ -311,6 +323,8 @@ Content-Type: application/json
 |---:|---|---|
 | 400 | `NO_FILES` | 没有文件 |
 | 400 | `INVALID_RELATIVE_PATHS` | 路径数量不匹配或包含非法值 |
+| 400 | `INVALID_AI_CONFIG` | AI 模式缺少地址、Key 或模型名称 |
+| 400 | `INVALID_AI_ENDPOINT` | AI 地址格式不安全或不是 HTTP(S) 根地址 |
 | 413 | `FILE_TOO_LARGE` | 单文件超限 |
 | 413 | `JOB_TOO_LARGE` | 整批大小或文件数超限 |
 | 415 | `UNSUPPORTED_FILE_TYPE` | 文件内容不是受支持的 PNG/JPEG/PDF |

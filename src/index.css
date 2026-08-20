@@ -1,7 +1,7 @@
-/* 字体全部走系统栈,不加载任何远程字体:
-   原先 @import 了 Google Fonts 的 Manrope/DM Mono 且 display=swap,
-   字体在动画进行中才到位,乱码拉丁字母从回退字体跳到 Manrope 的瞬间
-   整行重绘,正是"灰一下屏幕、有时会有时不会"的根因。去掉后无交换。 */
+/* 字体走系统栈,不加载远程字体:
+   此前怀疑 Google Fonts display=swap 的字体交换导致标题动画首帧"灰一下",
+   移除字体后闪烁仍偶发 → 已排除字体因素;改用系统栈纯为加载更快。
+   (根因未定位,用户已决定不追,保留排查备注备查) */
 :root { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; color: #eef5ff; background: #07100f; font-synthesis: none; }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
@@ -41,6 +41,25 @@ a { color: inherit; text-decoration: none; }
 .upload-selection strong, .upload-selection span { display: block; }
 .upload-selection strong { font-size: 13px; }
 .upload-selection span { margin-top: 4px; color: #788a85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 480px; font-size: 11px; }
+.selected-processing { padding: 0 12px 8px; }
+.selected-processing .upload-selection { padding-left: 4px; padding-right: 4px; }
+.processing-choice { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.processing-option { min-width: 0; padding: 15px; border: 1px solid rgba(255,255,255,.1); border-radius: 13px; background: rgba(255,255,255,.035); color: #dbe8e5; text-align: left; cursor: pointer; transition: .2s ease; }
+.processing-option:hover, .processing-option.active { transform: translateY(-1px); border-color: rgba(64,221,187,.38); background: rgba(64,221,187,.08); }
+.processing-option span, .processing-option small { display: block; }
+.processing-option span { font-size: 12px; font-weight: 750; }
+.processing-option small { margin-top: 6px; color: #71847e; font-size: 9px; line-height: 1.5; }
+.direct-option { border-color: rgba(64,221,187,.2); }
+.ai-option::after { content: 'AI'; float: right; margin-top: -30px; color: #b8a4ff; font: 8px monospace; }
+.ai-config-form { margin-top: 10px; padding: 17px; display: grid; grid-template-columns: 1.25fr 1fr 1fr; gap: 12px; border: 1px solid rgba(124,104,255,.22); border-radius: 14px; background: rgba(24,22,53,.35); text-align: left; }
+.ai-config-heading { grid-column: 1 / -1; display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+.ai-config-heading strong { font-size: 12px; }
+.ai-config-heading span { color: #758680; font-size: 9px; }
+.ai-config-form label span { display: block; margin-bottom: 6px; color: #899b96; font-size: 9px; }
+.ai-config-form input { width: 100%; height: 38px; padding: 0 11px; border: 1px solid rgba(255,255,255,.11); border-radius: 9px; outline: none; background: #07110f; color: #dcebe7; font: 10px monospace; }
+.ai-config-form input:focus { border-color: rgba(75,224,193,.55); box-shadow: 0 0 0 3px rgba(64,221,187,.07); }
+.ai-config-form > p { grid-column: 1 / span 2; margin: 2px 0 0; color: #647771; font-size: 9px; line-height: 1.6; }
+.ai-config-form > button { justify-self: end; align-self: end; }
 .demo-link { border: 0; background: transparent; color: #5fcdb6; cursor: pointer; font-size: 12px; margin: 15px 0 2px; }
 .trust-row { display: flex; justify-content: center; flex-wrap: wrap; gap: 26px; color: #60746f; font: 500 10px monospace; margin-top: 25px; text-transform: uppercase; }
 .trust-row span::before { content: '•'; color: #3cdfba; margin-right: 8px; }
@@ -78,6 +97,14 @@ a { color: inherit; text-decoration: none; }
 .status-pass { color: #53e0bd; background: rgba(53,224,189,.12); }
 .status-review { color: #ffbf6b; background: rgba(255,166,61,.13); }
 .status-provisional_pass { color: #c7a8ff; background: rgba(134,93,216,.16); }
+.status-failed { color: #ff8f8f; background: rgba(255,79,79,.13); }
+.connection-state { display: flex; align-items: center; gap: 7px; margin: -6px 11px 15px; color: #71847e; font: 9px monospace; }
+.connection-state > span { width: 6px; height: 6px; border-radius: 50%; background: #77908a; }
+.connection-live > span, .connection-complete > span { background: #40ddbb; box-shadow: 0 0 9px rgba(64,221,187,.65); }
+.connection-reconnecting > span, .connection-polling > span, .connection-uploading > span, .connection-connecting > span { background: #ffbd66; }
+.connection-error > span { background: #ff7373; }
+.processing-mode-note { margin: -5px 10px 16px; padding: 7px 9px; border-radius: 8px; color: #71847e; background: rgba(255,255,255,.035); font: 9px monospace; }
+.processing-mode-note.mode-ai { color: #bfaeff; background: rgba(124,104,255,.09); }
 .result-area { padding: 35px clamp(24px, 4vw, 58px) 70px; background: rgba(6,14,14,.45); }
 .result-header { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; margin-bottom: 24px; }
 .result-header h1 { margin: 7px 0 0; font-size: 27px; letter-spacing: -.04em; }
@@ -87,8 +114,9 @@ a { color: inherit; text-decoration: none; }
 .structure-panel > header { height: 48px; display: flex; align-items: center; justify-content: space-between; padding: 0 17px; border-bottom: 1px solid rgba(255,255,255,.07); }
 .structure-panel h3 { font-size: 12px; margin: 0; }
 .structure-panel header span { color: #60736e; font: 9px monospace; }
-.structure-canvas { height: 320px; display: grid; place-items: center; overflow: hidden; background: radial-gradient(circle at center, rgba(38,100,87,.13), transparent 58%); }
-.structure-canvas img { width: 100%; height: 100%; object-fit: contain; padding: 18px; filter: brightness(.96); }
+.structure-canvas { height: 320px; padding: 18px; display: grid; place-items: center; overflow: hidden; background: radial-gradient(circle at center, rgba(38,100,87,.13), transparent 58%); }
+.artifact-image-link { position: relative; width: 100%; height: 100%; min-width: 0; min-height: 0; overflow: hidden; cursor: zoom-in; }
+.structure-canvas img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; padding: 0; object-fit: contain; filter: brightness(.96); }
 .molecule-sketch { width: 72%; max-width: 330px; color: #dce7e4; overflow: visible; }
 .molecule-sketch text { font: 700 16px sans-serif; }
 .pdf-placeholder { display: grid; place-items: center; gap: 10px; color: #63756f; }
@@ -100,6 +128,8 @@ a { color: inherit; text-decoration: none; }
 .data-tabs button.active { color: #dff8f1; background: rgba(65,220,188,.1); }
 .data-card pre { margin: 13px 60px 0 3px; padding: 15px; border-radius: 10px; background: #07110f; color: #8ce7d3; font: 11px/1.7 monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
 .copy-button { position: absolute; right: 26px; bottom: 29px; border: 1px solid rgba(255,255,255,.1); border-radius: 7px; background: rgba(255,255,255,.04); color: #80918c; padding: 6px 9px; font-size: 9px; cursor: pointer; }
+.copy-button:disabled { cursor: not-allowed; opacity: .35; }
+.data-card pre.data-empty { color: #536a64; font-style: italic; }
 .audit-card { margin-top: 14px; padding: 20px; display: grid; grid-template-columns: 1.2fr .8fr; gap: 28px; }
 .audit-card > div { display: flex; gap: 12px; }
 .audit-dot { width: 9px; height: 9px; margin-top: 5px; border-radius: 50%; background: #46dfbd; box-shadow: 0 0 0 5px rgba(70,223,189,.1); flex: 0 0 auto; }
@@ -108,6 +138,27 @@ a { color: inherit; text-decoration: none; }
 .audit-card ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .audit-card li { display: flex; justify-content: space-between; gap: 12px; color: #81928d; font-size: 10px; }
 .audit-card time { color: #53635f; }
+.audit-failed { background: #ff7373; box-shadow: 0 0 0 5px rgba(255,115,115,.1); }
+.audit-review { background: #ffbf6b; box-shadow: 0 0 0 5px rgba(255,191,107,.1); }
+.pending-artifact { display: grid; place-items: center; gap: 9px; color: #526a64; text-align: center; }
+.pending-artifact span { font-size: 42px; color: #426e65; }
+.pending-artifact p { margin: 0; font-size: 11px; }
+.upload-error, .workspace-error { color: #ffaaa4; background: rgba(172,50,50,.13); border: 1px solid rgba(255,117,108,.2); border-radius: 10px; font-size: 11px; line-height: 1.6; }
+.upload-error { margin: 12px 12px 0; padding: 10px 12px; text-align: left; }
+.workspace-error { margin-bottom: 18px; padding: 12px 14px; }
+.empty-workspace { width: min(1460px, 100%); min-height: calc(100vh - 76px); margin: 0 auto; padding: 28px; position: relative; z-index: 2; display: grid; grid-template-rows: auto 1fr; background: rgba(6,14,14,.45); border-left: 1px solid rgba(255,255,255,.07); border-right: 1px solid rgba(255,255,255,.07); }
+.empty-workspace > .back-button { width: auto; }
+.empty-workspace > section { width: min(620px, 100%); margin: auto; padding: 52px; text-align: center; border: 1px solid rgba(255,255,255,.08); border-radius: 22px; background: rgba(12,25,23,.76); }
+.empty-workspace h1 { margin: 13px 0 12px; font-size: clamp(28px, 4vw, 42px); letter-spacing: -.05em; }
+.empty-workspace p { margin: 0 auto; max-width: 470px; color: #768a84; font-size: 13px; line-height: 1.8; }
+.empty-spinner { width: 62px; height: 62px; margin: 0 auto 25px; padding: 8px; border-radius: 50%; border: 1px solid rgba(64,221,187,.18); }
+.empty-spinner span { display: block; width: 100%; height: 100%; border: 2px solid rgba(64,221,187,.18); border-top-color: #40ddbb; border-radius: 50%; animation: workspace-spin 1.1s linear infinite; }
+.empty-spinner.has-error span { border-color: rgba(255,115,115,.18); border-top-color: #ff7373; animation: none; }
+.empty-progress { height: 4px; margin: 28px 0 10px; overflow: hidden; border-radius: 20px; background: rgba(255,255,255,.07); }
+.empty-progress i { display: block; height: 100%; border-radius: inherit; background: #40ddbb; transition: width .4s ease; }
+.empty-meta { display: flex; justify-content: space-between; color: #60756f; font: 10px monospace; }
+.empty-workspace .secondary-btn { margin-top: 25px; }
+@keyframes workspace-spin { to { transform: rotate(360deg); } }
 .decrypted-glitch { opacity: .18; filter: blur(5px); }
 .decrypted-clear { opacity: 1; filter: none; }
 
@@ -125,6 +176,10 @@ a { color: inherit; text-decoration: none; }
   .hero { padding-top: 76px; }
   .hero h1 { font-size: 45px; }
   .upload-actions, .upload-selection, .result-header { flex-direction: column; align-items: stretch; }
+  .processing-choice, .ai-config-form { grid-template-columns: 1fr; }
+  .ai-config-form > p, .ai-config-form > button, .ai-config-heading { grid-column: 1; }
+  .ai-config-heading { align-items: flex-start; flex-direction: column; }
+  .ai-config-form > button { justify-self: stretch; }
   .upload-actions button { width: 100%; }
   .trust-row { gap: 10px; flex-direction: column; }
   .workflow-grid, .comparison-grid, .audit-card { grid-template-columns: 1fr; }
