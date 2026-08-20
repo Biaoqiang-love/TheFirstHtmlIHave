@@ -83,14 +83,12 @@ export default function App() {
             <div className="eyebrow">PNG / PDF → Molecular Structure</div>
             <h1>
               {/* 乱码动效参数:
-                  speed           乱码跳动频率(每帧间隔 ms;100 = 比默认 50 慢一半)
-                  maxIterations   乱码滚动帧数(滚动结束后进入逐字揭晓)
-                  revealInterval  逐字揭晓间隔 ms;人眼分辨先后的下限约 50ms,10ms 会快得看不出逐字 */}
+                  speed           未落定字符的乱码跳动频率(每帧间隔 ms;67 = 原 100 快约 1.5 倍)
+                  revealInterval  逐字落定间隔 ms;每个字落定后经过该时长出现下一个字 */}
               <DecryptedText
                 text="让化学结构识别过程真正可见"
                 animateOn="view"
-                speed={100}
-                maxIterations={10}
+                speed={67}
                 revealInterval={80}
               />
             </h1>

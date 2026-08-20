@@ -153,49 +153,50 @@ export default function DecryptedText({
     // 用递归 setTimeout,不依赖 interval 套 interval,避免时序竞态。
     if (!sequential && revealInterval && direction === 'forward') {
       let cancelled = false;
-      let timer = null;
-      let scrambleCount = 0;
-      let pointer = 0;
+      let scrambler = null;
+      let revealer = null;
+      const revealed = new Set(); // 已落定字符的索引集合
 
-      const finish = () => {
+      // 已落定字符显示真字,未落定字符保持乱码
+      const render = () => {
         if (cancelled) return;
-        setIsAnimating(false);
-        setDisplayText(text);
-        setRevealedIndices(fillAllIndices());
-        setIsDecrypted(true);
+        setDisplayText(shuffleText(text, revealed));
       };
 
-      const revealStep = () => {
+      // 未落定字符乱码跳动:每 speed ms 重新随机一次
+      const scrambleLoop = () => {
         if (cancelled) return;
-        pointer++;
-        const newRevealed = new Set();
-        for (let i = 0; i < pointer && i < text.length; i++) newRevealed.add(i);
-        setRevealedIndices(newRevealed);
-        setDisplayText(shuffleText(text, newRevealed));
-        if (pointer >= text.length) {
-          finish();
+        render();
+        scrambler = setTimeout(scrambleLoop, speed);
+      };
+
+      // 逐字落定:每 revealInterval ms 从前往后落定一个字符
+      const revealLoop = () => {
+        if (cancelled) return;
+        if (revealed.size >= text.length) {
+          cancelled = true;
+          clearTimeout(scrambler);
+          setIsAnimating(false);
+          setDisplayText(text);
+          setRevealedIndices(fillAllIndices());
+          setIsDecrypted(true);
           return;
         }
-        timer = setTimeout(revealStep, revealInterval);
+        revealed.add(revealed.size); // 下一个待落定索引(由前往后)
+        setRevealedIndices(new Set(revealed));
+        render();
+        revealer = setTimeout(revealLoop, revealInterval);
       };
 
-      const scrambleStep = () => {
-        if (cancelled) return;
-        scrambleCount++;
-        setDisplayText(shuffleText(text, new Set()));
-        if (scrambleCount >= maxIterations) {
-          setRevealedIndices(new Set());
-          setDisplayText(shuffleText(text, new Set()));
-          timer = setTimeout(revealStep, revealInterval);
-          return;
-        }
-        timer = setTimeout(scrambleStep, speed);
-      };
+      // 动画开始:先整行乱码,首个字符立即落定,未落定字符高频跳动
+      render();
+      revealLoop();
+      scrambler = setTimeout(scrambleLoop, speed);
 
-      timer = setTimeout(scrambleStep, speed);
       return () => {
         cancelled = true;
-        clearTimeout(timer);
+        clearTimeout(scrambler);
+        clearTimeout(revealer);
       };
     }
 
