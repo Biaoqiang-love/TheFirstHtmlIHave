@@ -1,0 +1,598 @@
+openapi: 3.1.0
+info:
+  title: MolWeave Backend API
+  version: 1.0.0
+  license:
+    name: Unlicensed
+  description: >-
+    PNG/PDF molecular structure recognition job API. This specification defines
+    the Phase 1 frontend/backend contract only; it does not expose model secrets,
+    filesystem paths, or internal pipeline logs.
+servers:
+  - url: https://api.molweave.invalid
+    description: Placeholder for the model-capable backend
+security: []
+tags:
+  - name: Jobs
+    description: Create jobs and read their aggregate state.
+  - name: Samples
+    description: Read normalized molecule recognition results.
+  - name: Events
+    description: Follow asynchronous work through Server-Sent Events.
+paths:
+  /api/jobs:
+    post:
+      tags: [Jobs]
+      summary: Upload files and create an asynchronous recognition job
+      operationId: createJob
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [files]
+              properties:
+                files:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: string
+                    format: binary
+                relativePaths:
+                  type: array
+                  description: Optional display paths matched positionally to files.
+                  items:
+                    type: string
+            encoding:
+              files:
+                style: form
+                explode: true
+              relativePaths:
+                style: form
+                explode: true
+      responses:
+        '202':
+          description: Job accepted
+          headers:
+            Location:
+              description: URL of the created job
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/jobs/{jobId}:
+    parameters:
+      - $ref: '#/components/parameters/JobId'
+    get:
+      tags: [Jobs]
+      summary: Get the latest job snapshot
+      operationId: getJob
+      responses:
+        '200':
+          description: Current job
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '304':
+          description: Not modified when If-None-Match was supplied
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          $ref: '#/components/responses/Gone'
+  /api/jobs/{jobId}/samples:
+    parameters:
+      - $ref: '#/components/parameters/JobId'
+    get:
+      tags: [Samples]
+      summary: Get every sample currently discovered for a job
+      operationId: listJobSamples
+      responses:
+        '200':
+          description: Full, unpaginated sample collection ordered by index
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SampleCollection'
+        '304':
+          description: Not modified when If-None-Match was supplied
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          $ref: '#/components/responses/Gone'
+  /api/jobs/{jobId}/events:
+    parameters:
+      - $ref: '#/components/parameters/JobId'
+      - name: Last-Event-ID
+        in: header
+        required: false
+        description: Resume after the last event successfully applied by the client.
+        schema:
+          type: string
+    get:
+      tags: [Events]
+      summary: Stream job and sample updates with Server-Sent Events
+      operationId: streamJobEvents
+      responses:
+        '200':
+          description: >-
+            SSE stream. Event names are job.snapshot, job.updated,
+            sample.updated, job.completed, job.failed, and stream.reset. Each
+            data line contains a JSON-encoded StreamEvent.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-cache, no-transform
+            X-Accel-Buffering:
+              schema:
+                type: string
+                const: 'no'
+          content:
+            text/event-stream:
+              x-event-data-schema:
+                $ref: '#/components/schemas/StreamEvent'
+              schema:
+                type: string
+                description: UTF-8 SSE frames containing StreamEvent JSON data.
+              examples:
+                sampleUpdate:
+                  value: |-
+                    id: evt_01K33EXAMPLE
+                    event: sample.updated
+                    retry: 3000
+                    data: {"id":"evt_01K33EXAMPLE","type":"sample.updated","jobId":"job_01K33EXAMPLE","sampleId":"sample_01K33EXAMPLE","stage":"render","label":"RDKit 渲染完成","time":"2026-08-20T08:11:19.004Z","job":null,"sample":{}}
+
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          $ref: '#/components/responses/Gone'
+components:
+  parameters:
+    JobId:
+      name: jobId
+      in: path
+      required: true
+      description: Opaque job identifier
+      schema:
+        type: string
+        minLength: 1
+  responses:
+    BadRequest:
+      description: Invalid multipart request
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    PayloadTooLarge:
+      description: File, file count, or total job size exceeds configured limits
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    UnsupportedMediaType:
+      description: A file is not a supported PNG, JPEG, or PDF
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    TooManyRequests:
+      description: The worker queue is full
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+            minimum: 1
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    InternalError:
+      description: Safe internal error response without traceback or secrets
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    NotFound:
+      description: Job not found
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    Gone:
+      description: Job and artifacts have expired
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+  schemas:
+    JobStatus:
+      type: string
+      enum: [QUEUED, PROCESSING, COMPLETED, COMPLETED_WITH_ERRORS, FAILED]
+    SampleStatus:
+      type: string
+      enum: [PROCESSING, PASS, PROVISIONAL_PASS, REVIEW, FAILED]
+    PipelineStage:
+      type: string
+      enum: [input, recognition, render, compare, final]
+    StatusCounts:
+      type: object
+      additionalProperties: false
+      required: [processing, pass, provisionalPass, review, failed]
+      properties:
+        processing:
+          type: integer
+          minimum: 0
+        pass:
+          type: integer
+          minimum: 0
+        provisionalPass:
+          type: integer
+          minimum: 0
+        review:
+          type: integer
+          minimum: 0
+        failed:
+          type: integer
+          minimum: 0
+    ApiError:
+      type: object
+      additionalProperties: false
+      required: [code, message, retryable]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        retryable:
+          type: boolean
+    Job:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - status
+        - progress
+        - currentStage
+        - totalInputs
+        - totalSamples
+        - completedSamples
+        - statusCounts
+        - createdAt
+        - startedAt
+        - finishedAt
+        - updatedAt
+        - expiresAt
+        - error
+        - eventsUrl
+        - samplesUrl
+      properties:
+        id:
+          type: string
+        status:
+          $ref: '#/components/schemas/JobStatus'
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+        currentStage:
+          oneOf:
+            - $ref: '#/components/schemas/PipelineStage'
+            - type: 'null'
+        totalInputs:
+          type: integer
+          minimum: 1
+        totalSamples:
+          type: [integer, 'null']
+          minimum: 0
+        completedSamples:
+          type: integer
+          minimum: 0
+        statusCounts:
+          $ref: '#/components/schemas/StatusCounts'
+        createdAt:
+          type: string
+          format: date-time
+        startedAt:
+          type: [string, 'null']
+          format: date-time
+        finishedAt:
+          type: [string, 'null']
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        error:
+          oneOf:
+            - $ref: '#/components/schemas/ApiError'
+            - type: 'null'
+        eventsUrl:
+          type: string
+        samplesUrl:
+          type: string
+    SourceInfo:
+      type: object
+      additionalProperties: false
+      required:
+        - inputName
+        - relativePath
+        - pageNumber
+        - moleculeIndex
+        - detectionConfidence
+        - imageBbox
+        - pdfBbox
+      properties:
+        inputName:
+          type: string
+        relativePath:
+          type: string
+        pageNumber:
+          type: [integer, 'null']
+          minimum: 1
+        moleculeIndex:
+          type: [integer, 'null']
+          minimum: 1
+        detectionConfidence:
+          type: [number, 'null']
+          minimum: 0
+          maximum: 1
+        imageBbox:
+          oneOf:
+            - type: array
+              prefixItems:
+                - type: integer
+                - type: integer
+                - type: integer
+                - type: integer
+              minItems: 4
+              maxItems: 4
+            - type: 'null'
+        pdfBbox:
+          oneOf:
+            - type: array
+              prefixItems:
+                - type: number
+                - type: number
+                - type: number
+                - type: number
+              minItems: 4
+              maxItems: 4
+            - type: 'null'
+    AuditEvent:
+      type: object
+      additionalProperties: false
+      required: [id, type, jobId, sampleId, stage, label, time]
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum:
+            - job.snapshot
+            - job.updated
+            - sample.updated
+            - job.completed
+            - job.failed
+            - stream.reset
+        jobId:
+          type: string
+        sampleId:
+          type: [string, 'null']
+        stage:
+          oneOf:
+            - $ref: '#/components/schemas/PipelineStage'
+            - type: 'null'
+        label:
+          type: string
+        time:
+          type: string
+          format: date-time
+    Sample:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - jobId
+        - index
+        - name
+        - type
+        - status
+        - progress
+        - currentStage
+        - smiles
+        - molfile
+        - previewUrl
+        - renderSvgUrl
+        - renderPngUrl
+        - reason
+        - reasonCodes
+        - safeForDownstream
+        - requiresHumanReview
+        - fullyVerified
+        - confidence
+        - changed
+        - source
+        - events
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+        jobId:
+          type: string
+        index:
+          type: integer
+          minimum: 0
+        name:
+          type: string
+        type:
+          type: string
+          enum: [PNG, PDF]
+        status:
+          $ref: '#/components/schemas/SampleStatus'
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+        currentStage:
+          $ref: '#/components/schemas/PipelineStage'
+        smiles:
+          type: [string, 'null']
+        molfile:
+          type: [string, 'null']
+        previewUrl:
+          type: [string, 'null']
+        renderSvgUrl:
+          type: [string, 'null']
+        renderPngUrl:
+          type: [string, 'null']
+        reason:
+          type: [string, 'null']
+        reasonCodes:
+          type: array
+          items:
+            type: string
+        safeForDownstream:
+          type: boolean
+        requiresHumanReview:
+          type: boolean
+        fullyVerified:
+          type: boolean
+        confidence:
+          type: [number, 'null']
+          minimum: 0
+          maximum: 1
+        changed:
+          type: boolean
+        source:
+          $ref: '#/components/schemas/SourceInfo'
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditEvent'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    SampleCollection:
+      type: object
+      additionalProperties: false
+      required: [jobId, samples, count, updatedAt]
+      properties:
+        jobId:
+          type: string
+        samples:
+          type: array
+          items:
+            $ref: '#/components/schemas/Sample'
+        count:
+          type: integer
+          minimum: 0
+        updatedAt:
+          type: string
+          format: date-time
+    StreamEvent:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - type
+        - jobId
+        - sampleId
+        - stage
+        - label
+        - time
+        - job
+        - sample
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum:
+            - job.snapshot
+            - job.updated
+            - sample.updated
+            - job.completed
+            - job.failed
+            - stream.reset
+        jobId:
+          type: string
+        sampleId:
+          type: [string, 'null']
+        stage:
+          oneOf:
+            - $ref: '#/components/schemas/PipelineStage'
+            - type: 'null'
+        label:
+          type: string
+        time:
+          type: string
+          format: date-time
+        job:
+          oneOf:
+            - $ref: '#/components/schemas/Job'
+            - type: 'null'
+        sample:
+          oneOf:
+            - $ref: '#/components/schemas/Sample'
+            - type: 'null'
+    FieldError:
+      type: object
+      additionalProperties: false
+      required: [field, message]
+      properties:
+        field:
+          type: string
+        message:
+          type: string
+    ProblemDetails:
+      type: object
+      additionalProperties: true
+      required: [type, title, status, detail, code, instance]
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+        detail:
+          type: string
+        code:
+          type: string
+        instance:
+          type: string
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldError'
