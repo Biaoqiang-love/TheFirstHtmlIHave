@@ -83,12 +83,12 @@ export default function App() {
             <div className="eyebrow">PNG / PDF → Molecular Structure</div>
             <h1>
               {/* 乱码动效参数:
-                  speed           未落定字符的乱码跳动频率(每帧间隔 ms;67 = 原 100 快约 1.5 倍)
+                  speed           未落定字符的乱码跳动频率(每帧间隔 ms;50 = 原 67 更快)
                   revealInterval  逐字落定间隔 ms;每个字落定后经过该时长出现下一个字 */}
               <DecryptedText
                 text="让化学结构识别过程真正可见"
                 animateOn="view"
-                speed={67}
+                speed={50}
                 revealInterval={80}
               />
             </h1>
