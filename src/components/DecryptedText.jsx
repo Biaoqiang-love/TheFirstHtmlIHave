@@ -149,8 +149,57 @@ export default function DecryptedText({
   useEffect(() => {
     if (!isAnimating) return;
 
+    // 逐字揭晓模式:乱码慢跳若干帧后,由前往后每 revealInterval ms 落定一个字符。
+    // 用递归 setTimeout,不依赖 interval 套 interval,避免时序竞态。
+    if (!sequential && revealInterval && direction === 'forward') {
+      let cancelled = false;
+      let timer = null;
+      let scrambleCount = 0;
+      let pointer = 0;
+
+      const finish = () => {
+        if (cancelled) return;
+        setIsAnimating(false);
+        setDisplayText(text);
+        setRevealedIndices(fillAllIndices());
+        setIsDecrypted(true);
+      };
+
+      const revealStep = () => {
+        if (cancelled) return;
+        pointer++;
+        const newRevealed = new Set();
+        for (let i = 0; i < pointer && i < text.length; i++) newRevealed.add(i);
+        setRevealedIndices(newRevealed);
+        setDisplayText(shuffleText(text, newRevealed));
+        if (pointer >= text.length) {
+          finish();
+          return;
+        }
+        timer = setTimeout(revealStep, revealInterval);
+      };
+
+      const scrambleStep = () => {
+        if (cancelled) return;
+        scrambleCount++;
+        setDisplayText(shuffleText(text, new Set()));
+        if (scrambleCount >= maxIterations) {
+          setRevealedIndices(new Set());
+          setDisplayText(shuffleText(text, new Set()));
+          timer = setTimeout(revealStep, revealInterval);
+          return;
+        }
+        timer = setTimeout(scrambleStep, speed);
+      };
+
+      timer = setTimeout(scrambleStep, speed);
+      return () => {
+        cancelled = true;
+        clearTimeout(timer);
+      };
+    }
+
     let currentIteration = 0;
-    let revealPointer = 0;
     let revealTimer = null;
 
     const getNextIndex = revealedSet => {

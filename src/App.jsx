@@ -85,13 +85,13 @@ export default function App() {
               {/* 乱码动效参数:
                   speed           乱码跳动频率(每帧间隔 ms;100 = 比默认 50 慢一半)
                   maxIterations   乱码滚动帧数(滚动结束后进入逐字揭晓)
-                  revealInterval  逐字揭晓间隔 ms;每个字落定后 ≤ 该时长出现下一个字 */}
+                  revealInterval  逐字揭晓间隔 ms;人眼分辨先后的下限约 50ms,10ms 会快得看不出逐字 */}
               <DecryptedText
                 text="让化学结构识别过程真正可见"
                 animateOn="view"
                 speed={100}
                 maxIterations={10}
-                revealInterval={10}
+                revealInterval={80}
               />
             </h1>
             <p>上传分子结构图片或 PDF，逐步查看 MolScribe 识别、SMILES、Molfile、RDKit 渲染和视觉校验结果。</p>
